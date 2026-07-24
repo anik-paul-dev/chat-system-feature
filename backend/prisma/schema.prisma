@@ -1,0 +1,69 @@
+// Chat system schema.
+//
+// Kept deliberately simple relative to what a "real" chat product would
+// need (no read receipts, no edited-message history, no attachments) —
+// this covers exactly what the brief asks for: users, named rooms/channels,
+// and the messages sent inside them, in a way that's easy to reason about
+// and safe to query under load.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  memberships RoomMember[]
+  messages    Message[]
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  members  RoomMember[]
+  messages Message[]
+}
+
+// Explicit join table (rather than an implicit many-to-many) so we can
+// attach metadata to a membership later (e.g. joinedAt, role) without a
+// migration that changes the relation shape.
+model RoomMember {
+  id       String   @id @default(cuid())
+  userId   String
+  roomId   String
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  // A user can only join a given room once. This is the same kind of
+  // database-level guarantee used in the booking project: don't rely on
+  // application logic alone to prevent duplicates, let the schema enforce it.
+  @@unique([userId, roomId])
+  @@index([roomId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  roomId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  // Messages are always fetched "latest N for this room," so this index
+  // is what keeps that query fast as message volume grows.
+  @@index([roomId, createdAt])
+}

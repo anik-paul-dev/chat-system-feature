@@ -1,0 +1,9 @@
+/frontend/.env
+/frontend/.env.example
+/backend/.env
+/backend/.env.example
+/.env
+/.env.example
+.env
+.env.example
+docker-compose.yml
