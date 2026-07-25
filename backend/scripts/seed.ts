@@ -4,12 +4,15 @@ import { hashPassword } from "../src/lib/auth.js";
 
 const USER_COUNT = 10;
 // Every seeded test user shares this password, purely to make manual
-// testing and the hammer script simple — never do this in anything
+// testing and the hammer script simple â€” never do this in anything
 // resembling a real environment.
 const SEED_PASSWORD = "password123";
 
 async function main() {
   console.log("Clearing existing data...");
+  await prisma.directMessage.deleteMany();
+  await prisma.conversationMember.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.message.deleteMany();
   await prisma.roomMember.deleteMany();
   await prisma.room.deleteMany();
@@ -40,9 +43,9 @@ async function main() {
 
   console.log("\nSeed complete.");
   console.log(`Users (all share password "${SEED_PASSWORD}"):`);
-  users.forEach((u) => console.log(`  ${u.username} — ${u.id}`));
+  users.forEach((u) => console.log(`  ${u.username} â€” ${u.id}`));
   console.log("Rooms:");
-  rooms.forEach((r) => console.log(`  ${r.name} — ${r.id}`));
+  rooms.forEach((r) => console.log(`  ${r.name} â€” ${r.id}`));
 }
 
 main()
@@ -51,3 +54,4 @@ main()
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
+

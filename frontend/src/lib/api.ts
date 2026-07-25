@@ -1,8 +1,3 @@
-// All REST calls to the backend go through here, so there's exactly one
-// place that knows the backend's base URL and exactly one place that
-// shapes how errors from the backend get turned into JS Errors the rest
-// of the app can catch and display.
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export class ApiError extends Error {
@@ -33,9 +28,6 @@ async function request<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    // A network-level failure (server unreachable, DNS, CORS, etc) never
-    // reaches the JSON-parsing code below — catch it here with a message
-    // a real person can actually act on.
     throw new ApiError("Could not reach the server. Check your connection and try again.", "NETWORK_ERROR", 0);
   }
 
@@ -55,6 +47,21 @@ async function request<T>(
 }
 
 export type AuthResponse = { token: string; user: { id: string; username: string } };
+export type UserSummary = { id: string; username: string; createdAt: string };
+export type Room = { id: string; name: string; createdAt: string; _count: { members: number } };
+export type ChatMessage = {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: { id: string; username: string };
+};
+export type Conversation = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  otherUser: { id: string; username: string } | null;
+  lastMessage: ChatMessage | null;
+};
 
 export function registerUser(username: string, password: string) {
   return request<AuthResponse>("/api/auth/register", { method: "POST", body: { username, password } });
@@ -64,7 +71,9 @@ export function loginUser(username: string, password: string) {
   return request<AuthResponse>("/api/auth/login", { method: "POST", body: { username, password } });
 }
 
-export type Room = { id: string; name: string; createdAt: string; _count: { members: number } };
+export function listUsers(token: string) {
+  return request<{ users: UserSummary[] }>("/api/users", { token });
+}
 
 export function listRooms(token: string) {
   return request<{ rooms: Room[] }>("/api/rooms", { token });
@@ -78,13 +87,18 @@ export function joinRoom(token: string, roomId: string) {
   return request<{ room: Room }>(`/api/rooms/${roomId}/join`, { method: "POST", token });
 }
 
-export type ChatMessage = {
-  id: string;
-  content: string;
-  createdAt: string;
-  user: { id: string; username: string };
-};
-
-export function fetchMessageHistory(token: string, roomId: string) {
+export function fetchRoomMessages(token: string, roomId: string) {
   return request<{ messages: ChatMessage[] }>(`/api/rooms/${roomId}/messages`, { token });
+}
+
+export function listConversations(token: string) {
+  return request<{ conversations: Conversation[] }>("/api/conversations", { token });
+}
+
+export function startConversation(token: string, userId: string) {
+  return request<{ conversation: Conversation }>("/api/conversations", { method: "POST", body: { userId }, token });
+}
+
+export function fetchConversationMessages(token: string, conversationId: string) {
+  return request<{ messages: ChatMessage[] }>(`/api/conversations/${conversationId}/messages`, { token });
 }

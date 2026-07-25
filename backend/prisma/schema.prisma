@@ -1,10 +1,9 @@
 // Chat system schema.
 //
 // Kept deliberately simple relative to what a "real" chat product would
-// need (no read receipts, no edited-message history, no attachments) —
-// this covers exactly what the brief asks for: users, named rooms/channels,
-// and the messages sent inside them, in a way that's easy to reason about
-// and safe to query under load.
+// need (no read receipts, no edited-message history, no attachments) -
+// this covers users, named rooms/channels, 1-to-1 conversations, and the
+// messages sent inside them.
 
 generator client {
   provider = "prisma-client-js"
@@ -21,8 +20,10 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
-  memberships RoomMember[]
-  messages    Message[]
+  memberships             RoomMember[]
+  conversationMemberships ConversationMember[]
+  messages                Message[]
+  directMessages          DirectMessage[]
 }
 
 model Room {
@@ -34,9 +35,6 @@ model Room {
   messages Message[]
 }
 
-// Explicit join table (rather than an implicit many-to-many) so we can
-// attach metadata to a membership later (e.g. joinedAt, role) without a
-// migration that changes the relation shape.
 model RoomMember {
   id       String   @id @default(cuid())
   userId   String
@@ -46,9 +44,6 @@ model RoomMember {
   user User @relation(fields: [userId], references: [id])
   room Room @relation(fields: [roomId], references: [id])
 
-  // A user can only join a given room once. This is the same kind of
-  // database-level guarantee used in the booking project: don't rely on
-  // application logic alone to prevent duplicates, let the schema enforce it.
   @@unique([userId, roomId])
   @@index([roomId])
 }
@@ -63,7 +58,41 @@ model Message {
   user User @relation(fields: [userId], references: [id])
   room Room @relation(fields: [roomId], references: [id])
 
-  // Messages are always fetched "latest N for this room," so this index
-  // is what keeps that query fast as message volume grows.
   @@index([roomId, createdAt])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  pairKey   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  ConversationMember[]
+  messages DirectMessage[]
+}
+
+model ConversationMember {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String
+  joinedAt       DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@unique([userId, conversationId])
+  @@index([conversationId])
+}
+
+model DirectMessage {
+  id             String   @id @default(cuid())
+  content        String
+  userId         String
+  conversationId String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, createdAt])
 }
