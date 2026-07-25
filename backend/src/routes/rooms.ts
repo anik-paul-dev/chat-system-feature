@@ -48,7 +48,18 @@ roomsRouter.post("/", async (req, res) => {
     const room = await prisma.$transaction(async (tx) => {
       const created = await tx.room.create({ data: { name } });
       await tx.roomMember.create({ data: { userId, roomId: created.id } });
-      return created;
+      // Re-select with the same shape as GET / (including _count.members)
+      // so the client always receives a consistent Room shape, whether it
+      // just got this room from the list endpoint or from creating it.
+      return tx.room.findUniqueOrThrow({
+        where: { id: created.id },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          _count: { select: { members: true } },
+        },
+      });
     });
     res.status(201).json({ room });
   } catch (err) {

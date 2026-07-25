@@ -99,23 +99,24 @@ export default function RoomsPage() {
   useEffect(() => {
     if (!socket || connectionState !== "connected" || !active) return;
 
-    const joinEvent = active.type === "room" ? "room:join" : "conversation:join";
-    const leaveEvent = active.type === "room" ? "room:leave" : "conversation:leave";
-    const payload = active.type === "room" ? { roomId: active.id } : { conversationId: active.id };
+    const currentTarget = active;
+    const joinEvent = currentTarget.type === "room" ? "room:join" : "conversation:join";
+    const leaveEvent = currentTarget.type === "room" ? "room:leave" : "conversation:leave";
+    const payload = currentTarget.type === "room" ? { roomId: currentTarget.id } : { conversationId: currentTarget.id };
 
     socket.emit(joinEvent, payload, (response: SocketAck) => {
       if (!response.ok) setError(response.error ?? "Could not join this chat.");
     });
 
     function handleNewMessage(event: { targetType: "room" | "conversation"; roomId?: string; conversationId?: string; message: ChatMessage }) {
-      const matchesRoom = active.type === "room" && event.roomId === active.id;
-      const matchesConversation = active.type === "conversation" && event.conversationId === active.id;
+      const matchesRoom = currentTarget.type === "room" && event.roomId === currentTarget.id;
+      const matchesConversation = currentTarget.type === "conversation" && event.conversationId === currentTarget.id;
       if (!matchesRoom && !matchesConversation) return;
       setMessages((prev) => (prev.some((message) => message.id === event.message.id) ? prev : [...prev, event.message]));
-      if (active.type === "conversation") {
+      if (currentTarget.type === "conversation") {
         setConversations((prev) =>
           prev.map((conversation) =>
-            conversation.id === active.id
+            conversation.id === currentTarget.id
               ? { ...conversation, lastMessage: event.message, updatedAt: event.message.createdAt }
               : conversation
           )
@@ -233,7 +234,7 @@ export default function RoomsPage() {
               <div className="chat-user">{user?.username}</div>
             </div>
             <button className="icon-button" onClick={logout} title="Log out" aria-label="Log out">
-              <span aria-hidden="true">-></span>
+              <span aria-hidden="true">-{">"}</span>
             </button>
           </header>
 

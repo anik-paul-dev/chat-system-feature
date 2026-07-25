@@ -170,3 +170,50 @@ chat-system/
 └── frontend/                 # Next.js + TypeScript
     └── src/app/              # login, register, rooms list, chat room page
 ```
+
+
+
+### need when port problem caused
+
+Do this on your machine, in order:
+
+1. Find what's using port 6379. In PowerShell:
+
+```bash
+powershell
+Get-Process -Id (Get-NetTCPConnection -LocalPort 6379).OwningProcess
+```
+
+or simply:
+
+```bash
+powershell
+netstat -ano | findstr :6379
+```
+
+That gives you a PID in the last column — check what process it belongs to (Get-Process -Id <PID>).
+
+2. Most likely cause: a leftover container from a previous run (very common — an old chat-system-redis-1 or some other Redis container still running or not fully removed). Check:
+
+```bash
+powershell
+docker ps -a
+```
+
+If you see any container (from this project or another) bound to 6379, stop and remove it:
+
+```bash
+powershell
+docker stop <container_name_or_id>
+docker rm <container_name_or_id>
+```
+
+Or, if it's leftover from this exact project (common after a crashed up):
+
+
+```bash
+powershell
+docker compose down
+```
+
+run from the project folder, then docker compose up --build again.
